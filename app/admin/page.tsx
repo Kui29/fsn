@@ -3,7 +3,7 @@ import {useCallback, useEffect, useState} from "react";
 import {onAuthStateChanged, signInWithPopup, signOut, User} from "firebase/auth";
 import {getDownloadURL, ref, uploadBytes} from "firebase/storage";
 import {
-	Button, Checkbox, Input, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs, Textarea,
+	Autocomplete, AutocompleteItem, Button, Checkbox, Input, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs, Textarea,
 } from "@nextui-org/react";
 import {auth, provider, storage} from "@/firebase/fbConfigSetter";
 import {title} from "@/components/primitives";
@@ -12,6 +12,8 @@ import {AdminField, AdminResource, adminResources, fieldLabel} from "@/config/ad
 import "./admin.css";
 
 type Row = Record<string, any>;
+// Records of each linked data set, keyed by data set name
+type Linked = Record<string, Row[]>;
 
 async function adminFetch(user: User, path: string, init: RequestInit = {}) {
 	const response = await fetch(`/api/admin/${path}`, {
@@ -30,7 +32,26 @@ function toFormValue(field: AdminField, value: any) {
 	return value;
 }
 
-function formatCell(field: AdminField | undefined, value: any) {
+// Shows a linked record by its name instead of its ID
+function linkedName(field: AdminField, linked: Linked, id: any) {
+	const target = adminResources[field.references!];
+	const match = linked[field.references!]?.find(row => row[target.idField] === id);
+	return match?.[target.nameField] || id;
+}
+
+// Fills in a linked field on a new record: the signed-in admin for user links,
+// or the only choice when the linked data set has just one record
+function defaultLink(field: AdminField, linked: Linked, adminEmail: string | null) {
+	const target = adminResources[field.references!];
+	const rows = linked[field.references!] ?? [];
+	const match = field.references === "users"
+		? rows.find(row => row.email?.toLowerCase() === adminEmail?.toLowerCase())
+		: rows.length === 1 ? rows[0] : undefined;
+	return match?.[target.idField] ?? "";
+}
+
+function formatCell(field: AdminField | undefined, value: any, linked: Linked) {
+	if (field?.type === "reference" && value) return linkedName(field, linked, value);
 	if (field?.type === "media") return <MediaView url={value} alt={fieldLabel(field)} className="h-12 w-auto"/>;
 	if (typeof value === "boolean") return value ? "Yes" : "No";
 	const text = typeof value === "object" && value !== null ? JSON.stringify(value) : String(value ?? "");
@@ -68,6 +89,7 @@ export default function AdminPage() {
 function AdminDashboard({user}: {user: User}) {
 	const [resourceKey, setResourceKey] = useState(Object.keys(adminResources)[0]);
 	const [rows, setRows] = useState<Row[]>([]);
+	const [linked, setLinked] = useState<Linked>({});
 	const [error, setError] = useState("");
 	// undefined: form closed, null: adding a new record, string: editing that record
 	const [editingId, setEditingId] = useState<string | null | undefined>(undefined);
@@ -77,7 +99,11 @@ function AdminDashboard({user}: {user: User}) {
 		setError("");
 		setEditingId(undefined);
 		try {
-			setRows(await (await adminFetch(user, resourceKey)).json());
+			const linkedKeys = Array.from(new Set(adminResources[resourceKey].fields.flatMap(f => f.references ?? [])));
+			const [records, ...linkedRows] = await Promise.all([resourceKey, ...linkedKeys].map(async key =>
+				(await adminFetch(user, key)).json()));
+			setRows(records);
+			setLinked(Object.fromEntries(linkedKeys.map((key, i) => [key, linkedRows[i]])));
 		} catch (e: any) {
 			setError(e.message);
 			setRows([]);
@@ -132,6 +158,8 @@ function AdminDashboard({user}: {user: User}) {
 					key={`${resourceKey}-${editingId}`}
 					resource={resource}
 					record={rows.find(row => row[resource.idField] === editingId)}
+					linked={linked}
+					adminEmail={user.email}
 					onSave={save}
 					onCancel={() => setEditingId(undefined)}
 				/>
@@ -143,7 +171,7 @@ function AdminDashboard({user}: {user: User}) {
 				<TableBody emptyContent="No records yet">
 					{rows.map(row => (
 						<TableRow key={row[resource.idField]}>
-							{[...columns.map(col => <TableCell key={col.key}>{formatCell(col.field, row[col.key])}</TableCell>),
+							{[...columns.map(col => <TableCell key={col.key}>{formatCell(col.field, row[col.key], linked)}</TableCell>),
 								<TableCell key="actions">
 									<Button size="sm" onPress={() => setEditingId(row[resource.idField])}>Edit</Button>
 								</TableCell>]}
@@ -158,13 +186,19 @@ function AdminDashboard({user}: {user: User}) {
 type RecordFormProps = {
 	resource: AdminResource;
 	record?: Row;
+	linked: Linked;
+	adminEmail: string | null;
 	onSave: (values: Row) => Promise<void>;
 	onCancel: () => void;
 };
 
-function RecordForm({resource, record, onSave, onCancel}: RecordFormProps) {
-	const [values, setValues] = useState<Row>(() =>
-		Object.fromEntries(resource.fields.map(f => [f.name, toFormValue(f, record?.[f.name])])));
+function RecordForm({resource, record, linked, adminEmail, onSave, onCancel}: RecordFormProps) {
+	const [values, setValues] = useState<Row>(() => ({
+		// New records get their ID here; existing records keep theirs
+		[resource.idField]: record?.[resource.idField] ?? crypto.randomUUID(),
+		...Object.fromEntries(resource.fields.map(f => [f.name,
+			!record && f.type === "reference" ? defaultLink(f, linked, adminEmail) : toFormValue(f, record?.[f.name])])),
+	}));
 	const [saving, setSaving] = useState(false);
 	const setValue = (name: string, value: any) => setValues(prev => ({...prev, [name]: value}));
 
@@ -177,6 +211,7 @@ function RecordForm({resource, record, onSave, onCancel}: RecordFormProps) {
 
 	return (
 		<form onSubmit={submit} className="flex flex-col gap-3 max-w-xl">
+			<Input label="ID" value={values[resource.idField]} isReadOnly description="Created automatically"/>
 			{resource.fields.map(field => {
 				const props = {
 					label: fieldLabel(field),
@@ -193,7 +228,9 @@ function RecordForm({resource, record, onSave, onCancel}: RecordFormProps) {
 								{fieldLabel(field)}
 							</Checkbox>
 						);
-					case "media":
+					case "reference":
+					return <ReferenceField key={field.name} {...props} field={field} linked={linked}/>;
+				case "media":
 						return (
 							<MediaField key={field.name} {...props} folder={resource.collection}/>
 						);
@@ -247,5 +284,30 @@ function MediaField({label, value, folder, isRequired, onValueChange}: MediaFiel
 				   onChange={e => upload(e.target.files?.[0])}/>
 			{status && <p>{status}</p>}
 		</div>
+	);
+}
+
+type ReferenceFieldProps = {
+	label: string;
+	value: string;
+	field: AdminField;
+	linked: Linked;
+	isRequired?: boolean;
+	onValueChange: (value: string) => void;
+};
+
+// Lets the admin pick a linked record by name; its ID is what gets saved
+function ReferenceField({label, value, field, linked, isRequired, onValueChange}: ReferenceFieldProps) {
+	const target = adminResources[field.references!];
+	return (
+		<Autocomplete label={label} isRequired={isRequired} selectedKey={value || null}
+					  defaultItems={linked[field.references!] ?? []}
+					  onSelectionChange={key => onValueChange(key ? String(key) : "")}>
+			{row => (
+				<AutocompleteItem key={row[target.idField]} textValue={String(row[target.nameField] || row[target.idField])}>
+					{row[target.nameField] || row[target.idField]}
+				</AutocompleteItem>
+			)}
+		</Autocomplete>
 	);
 }

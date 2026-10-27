@@ -1,5 +1,6 @@
 import {Prisma} from "@prisma/client";
 import bcrypt from "bcryptjs";
+import {randomUUID} from "crypto";
 import {AdminResource, adminResources} from "@/config/adminResources";
 import {Timestamp} from "firebase-admin/firestore";
 import {adminAuth, adminDb} from "@/lib/firebaseAdmin";
@@ -98,13 +99,22 @@ function readableDates(data: Row): Row {
 		[key, value instanceof Timestamp ? value.toDate() : value]));
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Uses the ID the admin page generated, or makes one if it is missing or malformed
+function newRecordId(resource: AdminResource, input: Row): string {
+	const id = input[resource.idField];
+	return typeof id === "string" && UUID.test(id) ? id : randomUUID();
+}
+
 export async function createRecord(resource: AdminResource, input: Row): Promise<Row> {
 	const data = await parseInput(resource, input, true);
+	const id = newRecordId(resource, input);
 	if (resource.source === "prisma") {
-		return prismaModel(resource).create({data, select: prismaSelect(resource)});
+		return prismaModel(resource).create({data: {[resource.idField]: id, ...data}, select: prismaSelect(resource)});
 	}
-	const ref = await adminDb().collection(resource.collection).add(data);
-	return {id: ref.id, ...data};
+	await adminDb().collection(resource.collection).doc(id).create(data);
+	return {id, ...data};
 }
 
 export async function updateRecord(resource: AdminResource, id: string, input: Row): Promise<Row> {
