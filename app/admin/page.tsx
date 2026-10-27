@@ -7,6 +7,7 @@ import {
 import {auth, provider} from "@/firebase/fbConfigSetter";
 import {title} from "@/components/primitives";
 import {AdminField, AdminResource, adminResources} from "@/config/adminResources";
+import "./admin.css";
 
 type Row = Record<string, any>;
 
@@ -42,18 +43,21 @@ export default function AdminPage() {
 		setAuthReady(true);
 	}), []);
 
-	if (!authReady) return <p>Loading…</p>;
 	return (
-		<div className="flex flex-col gap-4 w-full">
+		<div className="flex flex-col gap-4 w-full py-6">
 			<h1 className={title()}>Admin</h1>
-			{user ? (
-				<>
-					<p>Signed in as {user.email} <Button size="sm" variant="light" onPress={() => signOut(auth)}>Sign out</Button></p>
-					<AdminDashboard user={user}/>
-				</>
-			) : (
-				<Button color="primary" onPress={() => signInWithPopup(auth, provider)}>Sign in with Google</Button>
-			)}
+			<div className="admin-panel bg-content1 text-foreground rounded-xl shadow-md p-6 flex flex-col gap-4">
+				{!authReady ? <p>Loading…</p> : user ? (
+					<>
+						<p>Signed in as {user.email} <Button size="sm" variant="light" onPress={() => signOut(auth)}>Sign out</Button></p>
+						<AdminDashboard user={user}/>
+					</>
+				) : (
+					<Button className="self-start" color="primary" onPress={() => signInWithPopup(auth, provider)}>
+						Sign in with Google
+					</Button>
+				)}
+			</div>
 		</div>
 	);
 }
@@ -108,7 +112,7 @@ function AdminDashboard({user}: {user: User}) {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<Tabs selectedKey={resourceKey} onSelectionChange={key => setResourceKey(String(key))}>
+			<Tabs color="primary" classNames={{tabContent: "text-default-700"}} selectedKey={resourceKey} onSelectionChange={key => setResourceKey(String(key))}>
 				{Object.entries(adminResources).map(([key, r]) => <Tab key={key} title={r.label}/>)}
 			</Tabs>
 			<div className="flex gap-2">
@@ -116,7 +120,7 @@ function AdminDashboard({user}: {user: User}) {
 				<Button variant="bordered" onPress={exportCsv}>Download CSV</Button>
 				<Button variant="light" onPress={load}>Refresh</Button>
 			</div>
-			{error && <p className="text-danger">{error}</p>}
+			{error && <p className="text-danger-600">{error}</p>}
 			{editingId !== undefined && (
 				<RecordForm
 					key={`${resourceKey}-${editingId}`}
@@ -178,7 +182,7 @@ function RecordForm({resource, record, onSave, onCancel}: RecordFormProps) {
 				switch (field.type) {
 					case "boolean":
 						return (
-							<Checkbox key={field.name} isSelected={values[field.name]}
+							<Checkbox key={field.name} size="lg" isSelected={values[field.name]}
 									  onValueChange={value => setValue(field.name, value)}>
 								{field.name}
 							</Checkbox>

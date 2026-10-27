@@ -1,0 +1,18 @@
+/* The site theme uses white text everywhere, which vanishes on the white tables and
+   form fields here, and its 10px base font size makes them tiny. Fix both inside the panel. */
+.admin-panel {
+    --nextui-foreground: 240 10% 4%;
+    --nextui-font-size-tiny: 12px;
+    --nextui-font-size-small: 14px;
+    --nextui-font-size-medium: 16px;
+    --nextui-font-size-large: 18px;
+    --nextui-line-height-tiny: 16px;
+    --nextui-line-height-small: 20px;
+    --nextui-line-height-medium: 24px;
+    --nextui-line-height-large: 28px;
+    font-size: 16px;
+}
+
+.dark .admin-panel {
+    --nextui-foreground: 0 0% 100%;
+}
