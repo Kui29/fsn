@@ -1,12 +1,14 @@
 "use client";
 import {useCallback, useEffect, useState} from "react";
 import {onAuthStateChanged, signInWithPopup, signOut, User} from "firebase/auth";
+import {getDownloadURL, ref, uploadBytes} from "firebase/storage";
 import {
 	Button, Checkbox, Input, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs, Textarea,
 } from "@nextui-org/react";
-import {auth, provider} from "@/firebase/fbConfigSetter";
+import {auth, provider, storage} from "@/firebase/fbConfigSetter";
 import {title} from "@/components/primitives";
-import {AdminField, AdminResource, adminResources} from "@/config/adminResources";
+import {MediaView} from "@/components/MediaView";
+import {AdminField, AdminResource, adminResources, fieldLabel} from "@/config/adminResources";
 import "./admin.css";
 
 type Row = Record<string, any>;
@@ -28,7 +30,8 @@ function toFormValue(field: AdminField, value: any) {
 	return value;
 }
 
-function formatCell(value: any) {
+function formatCell(field: AdminField | undefined, value: any) {
+	if (field?.type === "media") return <MediaView url={value} alt={fieldLabel(field)} className="h-12 w-auto"/>;
 	if (typeof value === "boolean") return value ? "Yes" : "No";
 	const text = typeof value === "object" && value !== null ? JSON.stringify(value) : String(value ?? "");
 	return text.length > 60 ? `${text.slice(0, 60)}…` : text;
@@ -108,7 +111,10 @@ function AdminDashboard({user}: {user: User}) {
 		}
 	};
 
-	const columns = [resource.idField, ...resource.fields.filter(f => f.type !== "password").map(f => f.name)];
+	const columns = [
+		{key: resource.idField, label: "ID", field: undefined},
+		...resource.fields.filter(f => f.type !== "password").map(f => ({key: f.name, label: fieldLabel(f), field: f})),
+	];
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -132,12 +138,12 @@ function AdminDashboard({user}: {user: User}) {
 			)}
 			<Table aria-label={resource.label} isStriped>
 				<TableHeader>
-					{[...columns, "actions"].map(col => <TableColumn key={col}>{col === "actions" ? "" : col}</TableColumn>)}
+					{[...columns.map(col => <TableColumn key={col.key}>{col.label}</TableColumn>), <TableColumn key="actions"> </TableColumn>]}
 				</TableHeader>
 				<TableBody emptyContent="No records yet">
 					{rows.map(row => (
 						<TableRow key={row[resource.idField]}>
-							{[...columns.map(col => <TableCell key={col}>{formatCell(row[col])}</TableCell>),
+							{[...columns.map(col => <TableCell key={col.key}>{formatCell(col.field, row[col.key])}</TableCell>),
 								<TableCell key="actions">
 									<Button size="sm" onPress={() => setEditingId(row[resource.idField])}>Edit</Button>
 								</TableCell>]}
@@ -173,7 +179,7 @@ function RecordForm({resource, record, onSave, onCancel}: RecordFormProps) {
 		<form onSubmit={submit} className="flex flex-col gap-3 max-w-xl">
 			{resource.fields.map(field => {
 				const props = {
-					label: field.name,
+					label: fieldLabel(field),
 					value: values[field.name],
 					onValueChange: (value: string) => setValue(field.name, value),
 					// Leaving the password blank when editing keeps the current one
@@ -184,8 +190,12 @@ function RecordForm({resource, record, onSave, onCancel}: RecordFormProps) {
 						return (
 							<Checkbox key={field.name} size="lg" isSelected={values[field.name]}
 									  onValueChange={value => setValue(field.name, value)}>
-								{field.name}
+								{fieldLabel(field)}
 							</Checkbox>
+						);
+					case "media":
+						return (
+							<MediaField key={field.name} {...props} folder={resource.collection}/>
 						);
 					case "longtext":
 						return <Textarea key={field.name} {...props}/>;
@@ -200,5 +210,42 @@ function RecordForm({resource, record, onSave, onCancel}: RecordFormProps) {
 				<Button variant="light" onPress={onCancel}>Cancel</Button>
 			</div>
 		</form>
+	);
+}
+
+type MediaFieldProps = {
+	label: string;
+	value: string;
+	folder: string;
+	isRequired?: boolean;
+	onValueChange: (value: string) => void;
+};
+
+// Uploads a photo or video to Firebase Storage and keeps its link in the form
+function MediaField({label, value, folder, isRequired, onValueChange}: MediaFieldProps) {
+	const [status, setStatus] = useState("");
+
+	const upload = async (file?: File) => {
+		if (!file) return;
+		setStatus("Uploading…");
+		try {
+			const fileRef = ref(storage, `admin/${folder}/${Date.now()}-${file.name}`);
+			await uploadBytes(fileRef, file);
+			onValueChange(await getDownloadURL(fileRef));
+			setStatus("");
+		} catch {
+			setStatus("Upload failed, please try again");
+		}
+	};
+
+	return (
+		<div className="flex flex-col gap-2">
+			<Input label={label} value={value} onValueChange={onValueChange} isRequired={isRequired}
+				   description="Upload a photo or video below, or paste a link"/>
+			<MediaView url={value} alt={label} className="max-h-48 w-auto rounded-lg"/>
+			<input type="file" accept="image/*,video/*" aria-label={`Upload ${label}`}
+				   onChange={e => upload(e.target.files?.[0])}/>
+			{status && <p>{status}</p>}
+		</div>
 	);
 }

@@ -1,6 +1,7 @@
 import {Prisma} from "@prisma/client";
 import bcrypt from "bcryptjs";
 import {AdminResource, adminResources} from "@/config/adminResources";
+import {Timestamp} from "firebase-admin/firestore";
 import {adminAuth, adminDb} from "@/lib/firebaseAdmin";
 import {prisma} from "@/lib/prisma";
 
@@ -88,7 +89,13 @@ export async function listRecords(resource: AdminResource): Promise<Row[]> {
 		return prismaModel(resource).findMany({select: prismaSelect(resource)});
 	}
 	const snapshot = await adminDb().collection(resource.collection).get();
-	return snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+	return snapshot.docs.map(doc => ({id: doc.id, ...readableDates(doc.data())}));
+}
+
+// Firestore returns dates as Timestamp objects; turn them into plain dates
+function readableDates(data: Row): Row {
+	return Object.fromEntries(Object.entries(data).map(([key, value]) =>
+		[key, value instanceof Timestamp ? value.toDate() : value]));
 }
 
 export async function createRecord(resource: AdminResource, input: Row): Promise<Row> {
@@ -111,7 +118,7 @@ export async function updateRecord(resource: AdminResource, id: string, input: R
 	}
 	const ref = adminDb().collection(resource.collection).doc(id);
 	await ref.update(data);
-	return {id, ...(await ref.get()).data()};
+	return {id, ...readableDates((await ref.get()).data() ?? {})};
 }
 
 export function toCsv(rows: Row[]): string {

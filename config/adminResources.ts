@@ -1,11 +1,13 @@
 // Data sets admins can view, export and edit. Shared by the admin page and the admin API,
 // so adding a field here makes it appear in the table, the form and the CSV export.
+// Every data set starts with a name, date, details and photo/video, then its own fields.
 
-export type FieldType = "text" | "longtext" | "number" | "boolean" | "date" | "list" | "password";
+export type FieldType = "text" | "longtext" | "number" | "boolean" | "date" | "list" | "password" | "media";
 
 export type AdminField = {
 	name: string;
 	type: FieldType;
+	label?: string;
 	required?: boolean;
 };
 
@@ -18,6 +20,8 @@ export type AdminResource = {
 	fields: AdminField[];
 };
 
+export const fieldLabel = (field: AdminField) => field.label ?? field.name;
+
 export const adminResources: Record<string, AdminResource> = {
 	users: {
 		label: "Users",
@@ -25,23 +29,23 @@ export const adminResources: Record<string, AdminResource> = {
 		collection: "user",
 		idField: "uid",
 		fields: [
-			{name: "first_name", type: "text", required: true},
-			{name: "middle_name", type: "text"},
-			{name: "last_name", type: "text", required: true},
-			{name: "user_name", type: "text", required: true},
-			{name: "email", type: "text", required: true},
-			{name: "phone_number", type: "text", required: true},
-			{name: "gender", type: "text", required: true},
-			{name: "birthday", type: "date", required: true},
-			{name: "reason", type: "longtext", required: true},
-			{name: "profession", type: "text"},
-			{name: "university", type: "text"},
-			{name: "degree", type: "text"},
-			{name: "interests", type: "list"},
-			{name: "is_team", type: "boolean"},
-			{name: "photo_url", type: "text"},
-			{name: "group_id", type: "text"},
-			{name: "password", type: "password", required: true},
+			{name: "first_name", label: "First name", type: "text", required: true},
+			{name: "birthday", label: "Date of birth", type: "date", required: true},
+			{name: "reason", label: "Details (reason for joining)", type: "longtext", required: true},
+			{name: "photo_url", label: "Photo or video", type: "media"},
+			{name: "middle_name", label: "Middle name", type: "text"},
+			{name: "last_name", label: "Last name", type: "text", required: true},
+			{name: "user_name", label: "Username", type: "text", required: true},
+			{name: "email", label: "Email", type: "text", required: true},
+			{name: "phone_number", label: "Phone number", type: "text", required: true},
+			{name: "gender", label: "Gender", type: "text", required: true},
+			{name: "profession", label: "Profession", type: "text"},
+			{name: "university", label: "University", type: "text"},
+			{name: "degree", label: "Degree", type: "text"},
+			{name: "interests", label: "Interests", type: "list"},
+			{name: "is_team", label: "Team member", type: "boolean"},
+			{name: "group_id", label: "Buddy group ID", type: "text"},
+			{name: "password", label: "Password", type: "password", required: true},
 		],
 	},
 	groups: {
@@ -49,7 +53,12 @@ export const adminResources: Record<string, AdminResource> = {
 		source: "prisma",
 		collection: "buddyGroup",
 		idField: "uid",
-		fields: [{name: "group_name", type: "text", required: true}],
+		fields: [
+			{name: "group_name", label: "Name", type: "text", required: true},
+			{name: "date", label: "Date", type: "date"},
+			{name: "details", label: "Details", type: "longtext"},
+			{name: "media_url", label: "Photo or video", type: "media"},
+		],
 	},
 	campaigns: {
 		label: "Campaigns",
@@ -57,10 +66,12 @@ export const adminResources: Record<string, AdminResource> = {
 		collection: "campaign",
 		idField: "uid",
 		fields: [
-			{name: "campaign_name", type: "text", required: true},
-			{name: "start_date", type: "date", required: true},
-			{name: "end_date", type: "date", required: true},
-			{name: "creator_id", type: "text", required: true},
+			{name: "campaign_name", label: "Name", type: "text", required: true},
+			{name: "start_date", label: "Start date", type: "date", required: true},
+			{name: "end_date", label: "End date", type: "date", required: true},
+			{name: "details", label: "Details", type: "longtext"},
+			{name: "media_url", label: "Photo or video", type: "media"},
+			{name: "creator_id", label: "Created by (user ID)", type: "text", required: true},
 		],
 	},
 	events: {
@@ -69,10 +80,12 @@ export const adminResources: Record<string, AdminResource> = {
 		collection: "event",
 		idField: "uid",
 		fields: [
-			{name: "event_name", type: "text", required: true},
-			{name: "start_date", type: "date", required: true},
-			{name: "end_date", type: "date", required: true},
-			{name: "campaign_id", type: "text", required: true},
+			{name: "event_name", label: "Name", type: "text", required: true},
+			{name: "start_date", label: "Start date", type: "date", required: true},
+			{name: "end_date", label: "End date", type: "date", required: true},
+			{name: "details", label: "Details", type: "longtext"},
+			{name: "media_url", label: "Photo or video", type: "media"},
+			{name: "campaign_id", label: "Campaign ID", type: "text", required: true},
 		],
 	},
 	photos: {
@@ -81,11 +94,13 @@ export const adminResources: Record<string, AdminResource> = {
 		collection: "campaignPhoto",
 		idField: "uid",
 		fields: [
-			{name: "url", type: "text", required: true},
-			{name: "caption", type: "text"},
-			{name: "is_main", type: "boolean", required: true},
-			{name: "campaign_id", type: "text", required: true},
-			{name: "creator_id", type: "text", required: true},
+			{name: "caption", label: "Name", type: "text"},
+			{name: "date", label: "Date", type: "date"},
+			{name: "details", label: "Details", type: "longtext"},
+			{name: "url", label: "Photo or video", type: "media", required: true},
+			{name: "is_main", label: "Main photo for the campaign", type: "boolean", required: true},
+			{name: "campaign_id", label: "Campaign ID", type: "text", required: true},
+			{name: "creator_id", label: "Added by (user ID)", type: "text", required: true},
 		],
 	},
 	points: {
@@ -94,10 +109,13 @@ export const adminResources: Record<string, AdminResource> = {
 		collection: "point",
 		idField: "uid",
 		fields: [
-			{name: "user_id", type: "text", required: true},
-			{name: "points_earned", type: "number", required: true},
-			{name: "reason", type: "text", required: true},
-			{name: "given_by", type: "text", required: true},
+			{name: "name", label: "Name", type: "text"},
+			{name: "given_at", label: "Date", type: "date"},
+			{name: "reason", label: "Details (reason)", type: "longtext", required: true},
+			{name: "media_url", label: "Photo or video", type: "media"},
+			{name: "points_earned", label: "Points", type: "number", required: true},
+			{name: "user_id", label: "Given to (user ID)", type: "text", required: true},
+			{name: "given_by", label: "Given by", type: "text", required: true},
 		],
 	},
 	stories: {
@@ -106,11 +124,12 @@ export const adminResources: Record<string, AdminResource> = {
 		collection: "stories",
 		idField: "id",
 		fields: [
-			{name: "name", type: "text", required: true},
-			{name: "letter", type: "longtext"},
-			{name: "letterPath", type: "text"},
-			{name: "userPicPath", type: "text"},
-			{name: "approved", type: "boolean"},
+			{name: "name", label: "Name", type: "text", required: true},
+			{name: "date", label: "Date", type: "date"},
+			{name: "letter", label: "Details (story)", type: "longtext"},
+			{name: "userPicPath", label: "Photo or video", type: "media"},
+			{name: "letterPath", label: "Letter image", type: "media"},
+			{name: "approved", label: "Approved", type: "boolean"},
 		],
 	},
 };

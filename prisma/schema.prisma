@@ -55,6 +55,9 @@ model User{
 model BuddyGroup{
   uid String @id @default(uuid())
   group_name String
+  date DateTime?
+  details String?
+  media_url String?
   members User[]
 }
 
@@ -63,6 +66,8 @@ model Campaign{
    campaign_name String
    start_date DateTime
    end_date DateTime
+   details String?
+   media_url String?
    events Event[]
    photos CampaignPhoto[]
    creator User @relation(fields:[creator_id], references: [uid])
@@ -75,6 +80,8 @@ model Event{
    event_name String
    start_date DateTime
    end_date DateTime
+   details String?
+   media_url String?
    campaign Campaign? @relation(fields: [campaign_id], references: [uid])
    campaign_id String
 }
@@ -82,6 +89,8 @@ model Event{
 model CampaignPhoto{
    uid String @id @default(uuid())
    caption String?
+   date DateTime?
+   details String?
    url String
    is_main Boolean
   campaign Campaign? @relation(fields: [campaign_id], references: [uid])
@@ -93,9 +102,11 @@ model CampaignPhoto{
 
 model Point{
    uid String @id @default(uuid())
+   name String?
    points_earned Int
    reason String
    given_at DateTime @default(now())
+   media_url String?
    given_to User @relation(fields: [user_id], references: [uid])
    user_id String
    given_by String
