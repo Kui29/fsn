@@ -21,12 +21,37 @@ export type AdminResource = {
 	idField: string;
 	// Field shown when another data set links to this one
 	nameField: string;
+	// Prisma only: limits the data set to matching records and stamps these values on saves
+	filter?: Record<string, string>;
 	fields: AdminField[];
 };
+
+// Public pages whose content admins build from sections
+export const sitePages = {thisMonth: "this-month", team: "team"} as const;
+
+const pageSectionFields: AdminField[] = [
+	{name: "heading", label: "Heading", type: "text", required: true},
+	{name: "date", label: "Date (optional, shown under the heading)", type: "date"},
+	{name: "details", label: "Text", type: "longtext"},
+	{name: "media_url", label: "Photo or video", type: "media"},
+	{name: "position", label: "Order on the page (1 shows first)", type: "number"},
+];
+
+const pageSections = (label: string, page: string): AdminResource => ({
+	label,
+	source: "prisma",
+	collection: "pageSection",
+	idField: "uid",
+	nameField: "heading",
+	filter: {page},
+	fields: pageSectionFields,
+});
 
 export const fieldLabel = (field: AdminField) => field.label ?? field.name;
 
 export const adminResources: Record<string, AdminResource> = {
+	thisMonthPage: pageSections("This Month page", sitePages.thisMonth),
+	teamPage: pageSections("Team page", sitePages.team),
 	users: {
 		label: "Users",
 		source: "prisma",

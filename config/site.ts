@@ -32,7 +32,7 @@ export const siteConfig = {
 		,
 		{
 			label: "Team",
-			href: "/Team",
+			href: "/team",
 		}
 	],
 	navMenuItems: [
@@ -59,7 +59,7 @@ export const siteConfig = {
 		,
 		{
 			label: "Team",
-			href: "/Team",
+			href: "/team",
 		}
 	],
 	links: {

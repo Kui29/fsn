@@ -113,3 +113,17 @@ model Point{
 
 
 }
+
+// Text and photo/video blocks admins add to public pages such as "This Month" and "Team"
+model PageSection{
+   uid String @id @default(uuid())
+   page String
+   heading String
+   date DateTime?
+   details String?
+   media_url String?
+   position Int?
+   updated_at DateTime @updatedAt @default(now())
+
+   @@index([page, position])
+}

@@ -48,7 +48,7 @@ async function parseInput(resource: AdminResource, input: Row, isCreate: boolean
 		if (value === undefined) continue;
 		data[field.name] = isEmpty ? null : await convert(field.type, value);
 	}
-	return data;
+	return {...data, ...resource.filter};
 }
 
 async function convert(type: string, value: unknown): Promise<unknown> {
@@ -87,7 +87,7 @@ function prismaSelect(resource: AdminResource) {
 
 export async function listRecords(resource: AdminResource): Promise<Row[]> {
 	if (resource.source === "prisma") {
-		return prismaModel(resource).findMany({select: prismaSelect(resource)});
+		return prismaModel(resource).findMany({where: resource.filter, select: prismaSelect(resource)});
 	}
 	const snapshot = await adminDb().collection(resource.collection).get();
 	return snapshot.docs.map(doc => ({id: doc.id, ...readableDates(doc.data())}));
@@ -121,7 +121,7 @@ export async function updateRecord(resource: AdminResource, id: string, input: R
 	const data = await parseInput(resource, input, false);
 	if (resource.source === "prisma") {
 		return prismaModel(resource).update({
-			where: {[resource.idField]: id},
+			where: {[resource.idField]: id, ...resource.filter},
 			data,
 			select: prismaSelect(resource),
 		});

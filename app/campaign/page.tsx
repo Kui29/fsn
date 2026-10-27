@@ -1,12 +1,14 @@
 import {Card, CardBody} from "@nextui-org/react";
 import {title} from "@/components/primitives";
 import {MediaView} from "@/components/MediaView";
+import {PageSections} from "@/components/PageSections";
+import {sitePages} from "@/config/adminResources";
 import {prisma} from "@/lib/prisma";
 
 // Always show the latest campaigns instead of a copy saved when the site was built
 export const dynamic = "force-dynamic";
 
-export const metadata = {title: "Campaigns"};
+export const metadata = {title: "This Month"};
 
 const formatDate = (date: Date) =>
 	date.toLocaleDateString("en-GB", {day: "numeric", month: "long", year: "numeric"});
@@ -37,7 +39,9 @@ export default async function CampaignsPage() {
 
 	return (
 		<div className="flex flex-col gap-8 py-8 text-[16px]">
-			<h1 className={title()}>Campaigns</h1>
+			<h1 className={title()}>This Month</h1>
+			<PageSections page={sitePages.thisMonth}/>
+			<h2 className="text-[30px] font-semibold">Campaigns</h2>
 			{campaigns.length === 0 && <p>No campaigns yet. Check back soon!</p>}
 			{campaigns.map(campaign => <CampaignSection key={campaign.uid} campaign={campaign}/>)}
 		</div>
