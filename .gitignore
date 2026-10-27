@@ -38,3 +38,6 @@ next-env.d.ts
 /.vscode
 .npmrc
 .vercel
+
+# real env values stay local; see .env.example
+.env
