@@ -44,8 +44,8 @@ async function parseInput(resource: AdminResource, input: Row, isCreate: boolean
 		if (isEmpty && field.required && (isCreate || value !== undefined)) {
 			throw new AdminError(`${field.name} is required`, 400);
 		}
-		// Fields that were not sent keep their current or default value
-		if (value === undefined) continue;
+		// Fields that were not sent keep their current value, and blank fields on new records get their default
+		if (value === undefined || (isCreate && isEmpty)) continue;
 		data[field.name] = isEmpty ? null : await convert(field.type, value);
 	}
 	return {...data, ...resource.filter};
